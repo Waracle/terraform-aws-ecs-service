@@ -385,7 +385,7 @@ data "aws_region" "current" {
 # tested. We expect deployments will manage the future container definitions.
 resource "aws_ecs_task_definition" "main" {
   family        = "${var.name}-${var.environment}"
-  network_mode  = "awsvpc"
+  network_mode  = var.network_mode == "" ? "awsvpc" : var.network_mode
   task_role_arn = aws_iam_role.task_role.arn
 
   # Fargate requirements
@@ -431,16 +431,17 @@ locals {
     FARGATE = []
   }
 
-  ecs_service_placement_constraints = {
+  ecs_service_placement_constraints = var.placement_constraints == "" ? {
     EC2 = [
       {
         type = "distinctInstance"
       },
     ]
     FARGATE = []
-  }
+  } : var.placement_constraints
 
-  ecs_service_agg_security_groups = var.manage_ecs_security_group ? compact(concat(tolist([aws_security_group.ecs_sg[0].id]), var.additional_security_group_ids)) : compact(var.additional_security_group_ids)
+
+ecs_service_agg_security_groups = var.manage_ecs_security_group ? compact(concat(tolist([aws_security_group.ecs_sg[0].id]), var.additional_security_group_ids)) : compact(var.additional_security_group_ids)
 }
 
 resource "aws_ecs_service" "main" {
@@ -477,10 +478,13 @@ resource "aws_ecs_service" "main" {
     }
   }
 
-  network_configuration {
-    subnets          = var.ecs_subnet_ids
-    security_groups  = local.ecs_service_agg_security_groups
-    assign_public_ip = var.assign_public_ip
+  dynamic network_configuration {
+    for_each = var.network_mode == "awsvpc" ? [1]: []
+    content {
+      subnets = var.ecs_subnet_ids
+      security_groups = local.ecs_service_agg_security_groups
+      assign_public_ip = var.assign_public_ip
+    }
   }
 
   dynamic "load_balancer" {

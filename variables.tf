@@ -187,6 +187,18 @@ variable "kms_key_id" {
   type        = string
 }
 
+variable "placement_constraints" {
+  description = "Constraints used for container placement"
+  default = {EC2 = [
+    {
+      type = "distinctInstance"
+    },
+  ]
+    FARGATE = []
+  }
+  type = object({EC2 = optional(list(object({type=string, expression=optional(string)}))), FARGATE=optional(list(object({type=string, expression=optional(string)})))})
+}
+
 variable "additional_security_group_ids" {
   description = "In addition to the security group created for the service, a list of security groups the ECS service should also be added to."
   default     = []
@@ -204,6 +216,12 @@ variable "lb_target_groups" {
       }
     )
   )
+}
+
+variable "network_mode" {
+  description = "Set the network mode for the task"
+  default = ""
+  type = string
 }
 
 variable "hello_world_container_ports" {
