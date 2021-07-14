@@ -174,7 +174,7 @@ resource "aws_security_group_rule" "app_ecs_allow_outbound" {
 resource "aws_security_group_rule" "app_ecs_allow_https_from_alb" {
   # if we have an alb, then create security group rules for the container
   # ports
-  count = var.manage_ecs_security_group && var.associate_alb ? length(local.lb_ingress_container_ports) : 0
+  count = var.manage_ecs_security_group && var.associate_alb && var.network_mode == "awsvpc" ? length(local.lb_ingress_container_ports) : 0
 
   description       = "Allow in ALB"
   security_group_id = aws_security_group.ecs_sg[0].id
@@ -183,6 +183,21 @@ resource "aws_security_group_rule" "app_ecs_allow_https_from_alb" {
   from_port                = element(local.lb_ingress_container_ports, count.index)
   to_port                  = element(local.lb_ingress_container_ports, count.index)
   protocol                 = "tcp"
+  source_security_group_id = var.alb_security_group
+}
+
+resource "aws_security_group_rule" "app_ecs_allow_https_from_alb_instance_type" {
+  # if we have an alb, then create security group rules for the container
+  # ports
+  count = var.manage_ecs_security_group && var.associate_alb && var.network_mode != "awsvpc" ? length(local.lb_ingress_container_ports) : 0
+
+  description       = "Allow in ALB"
+  security_group_id = aws_security_group.ecs_sg[0].id
+
+  type                     = "ingress"
+  from_port                = 0
+  to_port                  = 0
+  protocol                 = "ALL"
   source_security_group_id = var.alb_security_group
 }
 
@@ -198,6 +213,21 @@ resource "aws_security_group_rule" "app_ecs_allow_health_check_from_alb" {
   from_port                = element(local.lb_ingress_container_health_check_ports, count.index)
   to_port                  = element(local.lb_ingress_container_health_check_ports, count.index)
   protocol                 = "tcp"
+  source_security_group_id = var.alb_security_group
+}
+
+resource "aws_security_group_rule" "app_ecs_allow_health_check_from_alb_instance_type" {
+  # if we have an alb, then create security group rules for the container
+  # health check ports
+  count = var.manage_ecs_security_group && var.associate_alb && var.network_mode != "awsvpc" ? length(local.lb_ingress_container_health_check_ports) : 0
+
+  description       = "Allow in health check from ALB"
+  security_group_id = aws_security_group.ecs_sg[0].id
+
+  type                     = "ingress"
+  from_port                = 0
+  to_port                  = 0
+  protocol                 = "ALL"
   source_security_group_id = var.alb_security_group
 }
 
